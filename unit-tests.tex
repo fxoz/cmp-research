@@ -1,0 +1,141 @@
+\documentclass[a4paper,11pt]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[utf8]{inputenc}
+\usepackage[ngerman]{babel}
+\usepackage{csquotes}
+\usepackage[backend=biber,style=authoryear]{biblatex}
+\usepackage{parskip}
+\usepackage{microtype}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\addbibresource{literatur.bib}
+
+\begin{document}
+
+% ---------------------------------------------
+
+
+\section{Unit-Tests für Lexer, Parser und Codegenerator}
+
+Unit-Tests überprüfen gezielt einzelne Einheiten, wie Funktionen und Komponenten einer Software \parencite{meszaros2007}. Sie sind besonders hilfreich, wenn sie auf eine bestimmte Phase des Compilationsprozesses abzielen, da dadurch präziser die Ursache eines Fehlers identifiziert werden kann.  
+
+\subsection{Lexer}
+
+\begin{verbatim}
+EXPECT_TRUE(Lex("#include <\\\\\n").empty());
+\end{verbatim}
+
+\subsection{Parser}
+
+
+\subsection{Codegenerator}
+
+
+\section{Differential Testing}
+
+Ein Programm sollte bei gleichem Quellcode auch mit unterschiedlichen Compilern
+und Compileroptionen das gleiche beobachtbare Verhalten zeigen. Voraussetzung
+ist, dass der Quellcode kein undefiniertes Verhalten enthält und relevante
+Unterschiede zwischen den Zielplattformen berücksichtigt werden.
+
+Dabei werden folgende Varianten unterschieden:
+
+\begin{itemize}
+  \item Cross-Compiler Testing \parencite{terres2025}
+  \item Cross-Version Testing \parencite{terres2025}
+  \item Cross-Optimization Testing \parencite{terres2025}
+  \item Cross-Architecture Testing \parencite{elnaggar2025}
+\end{itemize}
+
+\subsection{Cross-Compiler Testing}
+
+Unterschiedliche Compiler, wie beispielsweise GCC und Clang, arbeiten intern
+unterschiedlich, müssen aber die Semantik eines Programms bei der Übersetzung
+erhalten.
+
+\subsection{Cross-Version Testing}
+
+Verschiedene Versionen eines Compilers werden miteinander verglichen, um
+Regressionen aufzudecken. Bei unveränderten Sprachregeln und vergleichbaren
+Compileroptionen sollte das beobachtbare Programmverhalten erhalten bleiben.
+
+\subsection{Cross-Optimization Testing}
+
+Compiler bieten unterschiedliche Optimierungsstufen an, beispielsweise
+\texttt{-O1}, \texttt{-O2} und \texttt{-O3}. Dabei können unter anderem
+Kontrollstrukturen verändert und Ausdrücke vereinfacht werden. Das definierte
+beobachtbare Programmverhalten muss dabei erhalten bleiben.
+
+\subsection{Cross-Architecture Testing}
+
+Das Programmverhalten wird auf unterschiedlichen Zielarchitekturen verglichen,
+beispielsweise x86, ARM, MIPS und RISC-V. Dabei müssen plattformabhängige
+Eigenschaften wie die Größe von Datentypen und die Byte-Reihenfolge
+berücksichtigt werden.
+
+Abweichende Ergebnisse können auf Compilerfehler hinweisen.
+Der Vergleich allein zeigt jedoch weder eindeutig, \emph{welche}
+Konfiguration fehlerhaft ist, noch, \emph{warum} der Fehler auftritt.
+
+Csmith \parencite{csmith} generiert zufällige Programme in C. Diese können mit
+verschiedenen Compilern und Compileroptionen getestet werden. Die
+Ergebnisse werden anschließend verglichen, um mögliche Fehler aufzudecken.
+
+\begin{verbatim}
+csmith > random2.c
+gcc random2.c -I$HOME/csmith/include -o random2_gcc
+clang random2.c -I$HOME/csmith/include -o random2_clang
+./random2_gcc > gcc_output.txt
+./random2_clang > clang_output.txt
+diff -u gcc_output.txt clang_output.txt
+\end{verbatim}
+
+Der obige Ausschnitt zeigt Befehle für eine Unix-Shell. Ein zufälliges
+C-Programm wird generiert, mit GCC und Clang kompiliert und anschließend
+ausgeführt. Die Ausgaben werden in Textdateien gespeichert und mit
+\texttt{diff} verglichen. Der Include-Pfad muss zur lokalen
+Csmith-Installation passen.
+
+Die erzeugten Binärdateien dürfen sich unterscheiden, da die Compiler intern
+unterschiedlich arbeiten. Unter vergleichbaren Bedingungen muss das definierte
+beobachtbare Verhalten und damit auch die verglichene Ausgabe übereinstimmen.
+
+\section{Gute Compiler-Fehlermeldungen}
+
+Hilfreiche Compilerfehlermeldungen erleichtern es, einen Fehler zu lokalisieren
+und zu beheben. Die folgende Tabelle enthält illustrative Beispiele; der genaue
+Wortlaut hängt unter anderem von der Compilerversion und dem Quellcode ab.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Illustrative Beispiele für Compilerfehlermeldungen}
+  \label{tab:compiler-fehlermeldungen}
+  \small
+  \renewcommand{\arraystretch}{1.2}
+  \begin{tabularx}{\linewidth}{@{}l>{\raggedright\arraybackslash}Xl@{}}
+    \toprule
+    \textbf{Angabe} & \textbf{Beispiel} \\
+    \midrule
+    Schweregrad & \texttt{Error/Warn/Info/Critical}  \\
+    Fehlerart & \texttt{Syntax Error} \\
+    Kontext & \texttt{In der Funktion main()} \\
+    Betroffene Position & \texttt{main.py, Zeile 10, Spalte 3} \\
+    Betroffener Quelltext & \texttt{print 1} \\
+    Vorschlag zur Behebung & \texttt{Füge Klammern hinzu} \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+Um sicherzustellen, dass Compilerfehlermeldungen stets konsistent und hilfreich sind, können auch diese mit Unit-Tests überprüft werden. 
+
+
+
+
+% ---------------------------------------------
+
+\clearpage
+\printbibliography
+
+\end{document}

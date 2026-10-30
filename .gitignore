@@ -1,0 +1,48 @@
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.lof
+*.log
+*.lot
+*.nav
+*.out
+*.run.xml
+*.snm
+*.synctex
+*.synctex.gz
+*.toc
+*.vrb
+*.xdv
+*.dvi
+*.loa
+*.lol
+*.acn
+*.acr
+*.alg
+*.glg
+*.glo
+*.gls
+*.ist
+*.idx
+*.ilg
+*.ind
+_minted*/
+
+# Generated document (keep unrelated reference PDFs trackable)
+/unit-tests.pdf
+
+# Local LaTeX verification output
+/.vscode/latex-preview-check/
+/.vscode/latex-build-check.txt
+
+# Editor backups and operating-system metadata
+*~
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+Desktop.ini

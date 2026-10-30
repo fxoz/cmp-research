@@ -1,0 +1,24 @@
+{
+    "latex-workshop.latex.autoBuild.run": "onSave",
+    "latex-workshop.latex.recipe.default": "first",
+    "latex-workshop.latex.recipes": [
+        { "name": "pdfLaTeX + Biber", "tools": ["pdflatex", "biber", "pdflatex", "pdflatex"] }
+    ],
+    "latex-workshop.latex.tools": [
+        { "name": "pdflatex", "command": "pdflatex", "args": ["-synctex=1", "-interaction=nonstopmode", "-file-line-error", "%DOC%"] },
+        { "name": "biber", "command": "biber", "args": ["%DOC%"], "env": { "LC_ALL": "C", "LC_CTYPE": "C", "LANG": "C" } }
+    ],
+    "latex-workshop.latex.outDir": "%DIR%",
+    "latex-workshop.latex.clean.method": "glob",
+    "latex-workshop.view.pdf.viewer": "tab",
+    "latex-workshop.view.pdf.tab.editorGroup": "right",
+    "[latex]": { "editor.wordWrap": "on", "editor.formatOnSave": false },
+    "files.exclude": {
+        "**/*.aux": true, "**/*.log": true, "**/*.synctex.gz": true,
+        "**/*.fls": true, "**/*.fdb_latexmk": true, "**/.git": true,
+        "**/.svn": true, "**/.hg": true, "**/.jj": true, "**/.DS_Store": true,
+        "**/Thumbs.db": true, "**/flutter/ephemeral": true, "**/Flutter/ephemeral": true,
+        "**/.symlinks": true, "**/.plugin_symlinks": true, ".vscode": true
+    },
+    "hide-files.files": [".vscode"]
+}
