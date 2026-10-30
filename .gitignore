@@ -32,9 +32,6 @@
 *.ind
 _minted*/
 
-# Generated document (keep unrelated reference PDFs trackable)
-/unit-tests.pdf
-
 # Local LaTeX verification output
 /.vscode/latex-preview-check/
 /.vscode/latex-build-check.txt
