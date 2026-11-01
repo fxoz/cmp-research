@@ -1,24 +1,77 @@
 {
-    "latex-workshop.latex.autoBuild.run": "onSave",
-    "latex-workshop.latex.recipe.default": "first",
-    "latex-workshop.latex.recipes": [
-        { "name": "pdfLaTeX + Biber", "tools": ["pdflatex", "biber", "pdflatex", "pdflatex"] }
-    ],
-    "latex-workshop.latex.tools": [
-        { "name": "pdflatex", "command": "pdflatex", "args": ["-synctex=1", "-interaction=nonstopmode", "-file-line-error", "%DOC%"] },
-        { "name": "biber", "command": "biber", "args": ["%DOC%"], "env": { "LC_ALL": "C", "LC_CTYPE": "C", "LANG": "C" } }
-    ],
-    "latex-workshop.latex.outDir": "%DIR%",
-    "latex-workshop.latex.clean.method": "glob",
-    "latex-workshop.view.pdf.viewer": "tab",
-    "latex-workshop.view.pdf.tab.editorGroup": "right",
-    "[latex]": { "editor.wordWrap": "on", "editor.formatOnSave": false },
-    "files.exclude": {
-        "**/*.aux": true, "**/*.log": true, "**/*.synctex.gz": true,
-        "**/*.fls": true, "**/*.fdb_latexmk": true, "**/.git": true,
-        "**/.svn": true, "**/.hg": true, "**/.jj": true, "**/.DS_Store": true,
-        "**/Thumbs.db": true, "**/flutter/ephemeral": true, "**/Flutter/ephemeral": true,
-        "**/.symlinks": true, "**/.plugin_symlinks": true, ".vscode": true
-    },
-    "hide-files.files": [".vscode"]
+  "latex-workshop.latex.autoBuild.run": "onSave",
+  "latex-workshop.latex.recipe.default": "first",
+  "latex-workshop.latex.recipes": [
+    {
+      "tools": [
+        "latexmk"
+      ],
+      "name": "latexmk (incremental PDF + Biber)"
+    }
+  ],
+  "latex-workshop.latex.tools": [
+    {
+      "command": "powershell.exe",
+      "name": "latexmk",
+      "env": {
+        "LC_ALL": "C",
+        "LANG": "C",
+        "LC_CTYPE": "C"
+      },
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "%WORKSPACE_FOLDER%/.vscode/latexmk.ps1",
+        "-pdf",
+        "-synctex=1",
+        "-interaction=nonstopmode",
+        "-file-line-error",
+        "-halt-on-error",
+        "-outdir=%OUTDIR%",
+        "%DOC%"
+      ]
+    }
+  ],
+  "latex-workshop.latex.outDir": "%DIR%/.latex-build",
+  "latex.linter.path": "C:/Users/Lynx/AppData/Local/Programs/MiKTeX/miktex/bin/x64/chktex.exe",
+  "latex-workshop.kpsewhich.path": "C:/Users/Lynx/AppData/Local/Programs/MiKTeX/miktex/bin/x64/kpsewhich.exe",
+  "latex-workshop.latex.clean.method": "glob",
+  "latex-workshop.view.pdf.viewer": "tab",
+  "latex-workshop.view.pdf.tab.editorGroup": "right",
+  "[latex]": {
+    "editor.wordWrap": "on",
+    "editor.formatOnSave": false,
+    "files.autoSave": "off"
+  },
+  "files.exclude": {
+    "**/.git": true,
+    "**/.svn": true,
+    "**/.hg": true,
+    "**/.DS_Store": true,
+    "**/Thumbs.db": true,
+    "**/CVS": true,
+    ".vscode": true,
+    "**/*.aux": true,
+    "**/*.log": true,
+    "**/*.synctex.gz": true,
+    "**/*.fls": true,
+    "**/*.fdb_latexmk": true,
+    "**/.jj": true,
+    "**/flutter/ephemeral": true,
+    "**/Flutter/ephemeral": true,
+    "**/.symlinks": true,
+    "**/.plugin_symlinks": true,
+    "**/.latex-build": true
+  },
+  "hide-files.files": [
+    ".vscode"
+  ],
+  "latex-workshop.latex.autoClean.run": "never",
+  "latex-workshop.latex.autoBuild.cleanAndRetry.enabled": false,
+  "latex-workshop.view.pdf.zoom": "page-width",
+  "[bibtex]": {
+    "files.autoSave": "off"
+  }
 }

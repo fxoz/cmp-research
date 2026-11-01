@@ -1,0 +1,282 @@
+\documentclass[a4paper,11pt]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[utf8]{inputenc}
+\usepackage[ngerman]{babel}
+\usepackage{csquotes}
+\usepackage[backend=biber,style=authoryear]{biblatex}
+\usepackage{parskip}
+\usepackage{microtype}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\addbibresource{literatur.bib}
+
+\begin{document}
+
+% ---------------------------------------------
+
+\section{-to be merged later, strictly keep this notice until merge!-}
+
+\section{Gute Compiler-Fehlermeldungen}
+
+Hilfreiche Compilerfehlermeldungen erleichtern es, einen Fehler zu lokalisieren
+und zu beheben. Die folgende Tabelle enthält illustrative Beispiele; der genaue
+Wortlaut hängt unter anderem von der Compilerversion und dem Quellcode ab.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Illustrative Beispiele für Compilerfehlermeldungen}
+  \label{tab:compiler-fehlermeldungen}
+  \small
+  \renewcommand{\arraystretch}{1.2}
+  \begin{tabularx}{\linewidth}{@{}l>{\raggedright\arraybackslash}Xl@{}}
+    \toprule
+    \textbf{Angabe} & \textbf{Beispiel} \\
+    \midrule
+    Schweregrad & \texttt{Error/Warn/Info/Critical}  \\
+    Fehlerart & \texttt{Syntax Error} \\
+    Kontext & \texttt{In der Funktion main()} \\
+    Betroffene Position & \texttt{main.py, Zeile 10, Spalte 3} \\
+    Betroffener Quelltext & \texttt{print 1} \\
+    Vorschlag zur Behebung & \texttt{Füge Klammern hinzu} \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+Um sicherzustellen, dass Compilerfehlermeldungen stets konsistent und hilfreich sind, können auch diese mit Unit-Tests überprüft werden. Wie das in der Praxis umgesetzt wird, zeigt das folgende Beispiel.
+
+\subsection{Praxisbeispiel: Rust}
+
+Für die Programmiersprache Rust gibt es eine Sammlung namens \texttt{tests/ui}, welche unter anderem Konsolenausgaben validiert, darunter auch sogenannte \emph{Error Annotations}, mit welchen erwartete Fehlermeldungen definiert werden. Ein offizielles genanntes Beispiel: \parencite{rust_ui_tests}
+
+\begin{verbatim}
+fn main() {
+  boom  //~ ERROR cannot find value `boom` in this scope [E0425]
+}
+\end{verbatim}
+
+Das Tilde-Symbol (\texttt{\textasciitilde}) kennzeichnet die von einem Fehler betroffene Zeile. Ein alternativer Weg, sich auf eine Zeile zu beziehen ist beispielsweise \texttt{\textasciitilde \textasciicircum \textasciicircum \textasciicircum}, was die problematische Stelle drei Zeilen über der aktuellen Annotation sucht. Redundant dazu werden autogenerierte \texttt{.stderr}-Dateien genutzt, welche die gesamte erwartete Compilerausgabe angeben. Nach der Kennzeichnung der Position folgt ein Schweregrad (darunter \texttt{ERROR}/\texttt{WARN}/\texttt{NOTE}/\texttt{HELP}) \parencite{rust_ui_tests}
+
+\section{-to be merged later, strictly keep this notice until merge!-}
+
+\section{Unit-Tests für Lexer, Parser und Codegenerator}
+
+Unit-Tests überprüfen gezielt einzelne Einheiten, wie Funktionen und Komponenten einer Software \parencite{meszaros2007}. Sie sind besonders hilfreich, wenn sie auf eine bestimmte Phase des Compilationsprozesses abzielen, da dadurch präziser die Ursache eines Fehlers identifiziert werden kann. 
+
+In der Praxis werden oft nicht nur eng konstruierte Unit-Tests verwendet, sondern auch Compilerphasen-übergreifende Tests bis hin zu End-to-End-Tests, welche den gesamten Compilerzyklus abdecken.
+
+\subsection{Lexer}
+
+Häfuig werden nach dem \emph{Preprocessing}, also der Vorverarbeitung, die Zeichenfolgen in Tokens eingeteilt. Diese Aufgabe übernimmt der Lexer, welcher die Zeichenfolgen in eine abstrakte Repräsentation überführt. \parencite{ibm_compiler_phases}
+
+Einer der häufigsten Fehlerursachen in dieser Phase sind nicht korrekt identifiziert oder eingeordnete Whitespace-Zeichen, Zeilenumbrüche, Kommentare und Escape-Sequenzen. \parencite{gcc_preprocessor_internals}
+
+\subsection{Beispiel: LLVM}
+
+\begin{verbatim}
+EXPECT_TRUE(Lex("#include <\\\\\n").empty());
+\end{verbatim}
+
+Der obige Ausschnitt aus den LLVM-Unit-Tests überprüft die Verarbeitung einer unvollständigen \texttt{\#include}-Direktive mit einer Zeilenfortsetzung (\textbackslash  \textbackslash \textbackslash \textbackslash n). Dabei wird mit \texttt{EXPECT\_TRUE} sichergestellt, dass die Funktion Lex für diese Eingabe eine leere Token-Liste zurückgibt. \parencite{llvm_lexer_test}
+
+Des weiteren werden Strings verglichen, um sicherzustellen, dass der Anfang der Indentifier korrekt gefunden werden:
+
+\begin{verbatim}
+TEST_F(LexerTest, GetBeginningOfTokenWithEscapedNewLine) {
+  ...
+  std::string TextToLex = "rabarbar\n"
+                          "foo\\\nbar\n"
+                          "foo\\\rbar\n"
+                          "fo\\\r\nbar\n"
+                          "foo\\\n\rba\n";
+  std::vector<tok::TokenKind> ExpectedTokens{5, tok::identifier};
+  std::vector<Token> LexedTokens = CheckLex(TextToLex, ExpectedTokens);
+
+  for (const Token &Tok : LexedTokens) {
+    FileIDAndOffset OriginalLocation =
+        SourceMgr.getDecomposedLoc(Tok.getLocation());
+    for (unsigned Offset = 0; Offset < IdentifierLength; ++Offset) {
+      SourceLocation LookupLocation =
+          Tok.getLocation().getLocWithOffset(Offset);
+
+      FileIDAndOffset FoundLocation = SourceMgr.getDecomposedExpansionLoc(
+          Lexer::GetBeginningOfToken(LookupLocation, SourceMgr, LangOpts));
+
+      // Check that location returned by the GetBeginningOfToken
+      // is the same as original token location reported by Lexer.
+      EXPECT_EQ(FoundLocation.second, OriginalLocation.second);
+    }
+  }
+}
+
+\end{verbatim}
+
+Der Test \parencite{llvm_lexer_test} prüft, ob der Lexer von jeder Zeichenposition eines Wortes dessen Anfang findet. Das soll auch dann funktionieren, wenn das Wort durch einen Backslash und einen Zeilenumbruch unterbrochen ist. Dafür werden verschiedene Arten von Zeilenumbrüchen getestet.
+
+\subsection{Beispiel: Python}
+
+Auch in interpretierten Sprachen wie Python werden Tokenizer-Tests durchgeführt: \parencite{python_test_tokenizer}
+
+\begin{verbatim}
+tokens5 = list(tokenize.tokenize(readline))
+tokens2 = [tok[:2] for tok in tokens5]
+
+bytes_from2 = tokenize.untokenize(tokens2)
+readline2 = iter(bytes_from2.splitlines(keepends=True)).__next__
+tokens2_from2 = [tok[:2] for tok in tokenize.tokenize(readline2)]
+
+self.assertEqual(tokens2_from2, tokens2)
+\end{verbatim}
+
+Dabei wird ein gegebener Quelltext in Tokens zerlegt und zwischenzeitlich vereinfacht, indem nur der Typ und der String-Inhalt der Tokens betrachtet wird: \parencite{python_tokenizer}
+
+\begin{verbatim}
+TokenInfo(type=%s, string=%r, start=%r, end=%r, line=%r)
+\end{verbatim}
+
+Dies wird getan, da die Positionen der Tokens in dem Test nicht als relevant angesehen werden.
+
+Im Anschluss wird der von diesen vereinfachten Tokens zusammengestellter Quellcode in Tokens eingeteilt. Die tokenized Version davon muss mit der Version vom Anfang, das heißt vor der Rückkonvertierung, übereinstimmen. \parencite{python_test_tokenizer}
+
+
+\subsection{Parser}
+
+Nachdem ein Lexer überprüft, ob die Zeichenfolgen grundsätzlich korrekt sind, hat der Parser die Aufgabe, die generierten Tokens in eine abstrakte Syntaxstruktur, in der Regel in Form eines \emph{Abstract Syntax Tree}, AST zu überführen. 
+
+So werden vor allem die Zusammenhänge zwischen den Tokens überprüft und in logische Zusammenhänge dargestellt. Eine tiefere semantische Analyse oder Typprüfung wird jedoch erst in späteren Phasen durchgeführt. \parencite{ibm_compiler_phases}
+
+\begin{verbatim}
+let mut async = 1; //~ ERROR expected identifier, found keyword `async`
+let mut r#async = 1; // OK
+\end{verbatim}
+
+Der obige Ausschnitt \parencite{rust_parsing_keywords} aus den Rust UI tests \parencite{rust_ui_tests} nutzt, wie bereits im Beispiel der Fehlermeldungen erwähnt, die Tilde-Symbole, um die problematische Zeile mit einem erwarteten Fehler zu kennzeichnen. Zwar ist dies kein exklusiver Parser-Test, jedoch ist der Parser essentiell für die Erkennung von Schlüsselwörtern und Bezeichnern. 
+
+Die erste Zeile ist fehlerhaft, denn das Schlüsselwort \texttt{async} darf nicht als Bezeichner verwendet werden. Ein Positivbeispiel ist die zweite Zeile, in welcher das Schlüsselwort \texttt{async} mit einem sogenannten \emph{Raw Identifier}, also ausdrücklich als Bezeichner verwendet wird. Diese Funktionalität ist primär für Abwärtskompatibilität gedacht.
+
+\subsection{Codegenerator}
+
+Der Codegenerator ist die letzte Phase des gewöhnlichen Compilerzyklus. Er übersetzt die abstrakte Syntaxstruktur in eine für die Zielplattform ausführbare Form, wie Assembler.
+
+LLVM testet die Codegenerierung für unterschiedliche Zielplattformen beziehungsweise Architekturen, darunter RISC-V: \parencite{llvm_alu32}
+
+\begin{verbatim}
+define i32 @add(i32 %a, i32 %b) nounwind {
+; RV32I-LABEL: add:
+; RV32I:       # %bb.0:
+; RV32I-NEXT:    add a0, a0, a1
+; RV32I-NEXT:    ret
+;
+; RV64I-LABEL: add:
+; RV64I:       # %bb.0:
+; RV64I-NEXT:    addw a0, a0, a1
+; RV64I-NEXT:    ret
+  %1 = add i32 %a, %b
+  ret i32 %1
+}
+\end{verbatim}
+
+In dieser \emph{Intermediate Representation} (IR) wird eine Funktion definiert, welche zwei 32-Bit-Zahlen addiert, und das Ergebnis zurückgibt. Die Kommentare mit \texttt{RV32I} und \texttt{RV64I} kennzeichnen die erwarteten Assembler-Ausgaben für die jeweiligen Zielplattformen. Dadurch können für ein IR-Codeblock gleich zwei unterschiedliche Assembler-Implementationen getestet werden.
+
+Diese Kennzeichnung nennt sich \emph{FileCheck}, ein von LLVM bereitgestelltes, musterbasiertes Tool zur automatischen Überprüfung von textbasierten Ausgaben. \parencite{llvm_filecheck} Bedeutend ist hierbei der Unterschied zwischen den beiden Plattformen: Auf der 32-Bit-Plattform wird die Anweisung \texttt{add} verwendet, während auf 64-Bit die Anweisung \texttt{addw} verwendet wird. 
+
+
+
+\section{-to be merged later, strictly keep this notice until merge!-}
+
+\section{Differential Testing}
+
+Ein Programm sollte bei identischem Quellcode auch mit unterschiedlichen Compilern
+und Compileroptionen dasselbe beobachtbare Verhalten aufweisen — jedoch nur unter bestimmten Bedingungen, welche später erläutert werden.
+
+Dabei werden folgende Varianten unterschieden:
+
+\begin{itemize}
+  \item Cross-Compiler Testing \parencite{terres2025}
+  \item Cross-Version Testing \parencite{terres2025}
+  \item Cross-Optimization Testing \parencite{terres2025}
+  \item Cross-Architecture Testing \parencite{elnaggar2025}
+\end{itemize}
+
+\subsection{Abweichungen}
+
+Eine wichtige Voraussetzung ist, dass der Quellcode kein undefiniertes oder unspezifiziertes Verhalten enthält (oder eben dieses kontrolliert testet) und relevante Unterschiede zwischen den Zielplattformen berücksichtigt werden.
+
+In C/C++ sind signierte Integer-Überläufe oder Division durch Null \parencite{cppreference_arithmetic} sind Beispiele für undefiniertes Verhalten. Unspezifiziertes Verhalten beschreibt unter anderem die Reihenfolge von Funktionsaufrufen, wenn diese keine Abhängigkeiten zueinander haben. \parencite{cppreference_evaluation_order} Während unspezifiziertes Verhalten bewusst mehr Flexibilität erlaubt, kann undefiniertes Verhalten zu unvorhersehbaren Ergebnissen führen. \parencite{cppreference_undefined_behavior}
+
+\subsection{Cross-Compiler Testing}
+
+Unterschiedliche Compiler, wie beispielsweise GCC und Clang, arbeiten intern
+unterschiedlich, müssen aber die Semantik eines Programms bei der Übersetzung
+erhalten.
+
+\subsection{Cross-Version Testing}
+
+Verschiedene Versionen eines Compilers werden miteinander verglichen, um
+Regressionen aufzudecken. Bei unveränderten Sprachregeln und vergleichbaren
+Compileroptionen sollte das beobachtbare Programmverhalten erhalten bleiben.
+
+\subsection{Cross-Optimization Testing}
+
+Compiler bieten unterschiedliche Optimierungsstufen an, beispielsweise
+\texttt{-O1}, \texttt{-O2} und \texttt{-O3}. Dabei können unter anderem
+Kontrollstrukturen verändert und Ausdrücke vereinfacht werden.
+
+Ein Beispiel für unerwartetes Programmverhaltens nach einer Optimierung ist die GCC Flag \texttt{-ffast-math}: \parencite{gcc_optimize_options}
+
+\begin{quote}
+  This option is not turned on by any -O option besides -Ofast since it can result in incorrect output for programs that depend on an exact implementation of [rules] for math functions. It may, however, yield faster code for programs that do not require the guarantees of these specifications.
+\end{quote}
+
+Das Verhalten kann für bestimmte Arithmetikfunktionen leicht abweichen, um die Performance zu verbessern. 
+Ein Weg, trotz solcher Abweichungen Differential Testing zu betreiben, ist die Definition von Toleranzbereichen.
+
+\subsection{Cross-Architecture Testing}
+
+Das Programmverhalten wird auf unterschiedlichen Zielarchitekturen verglichen,
+beispielsweise x86, ARM, MIPS und RISC-V. Dabei müssen plattformabhängige
+Eigenschaften wie die Größe von Datentypen und die Byte-Reihenfolge
+berücksichtigt werden.
+
+So entspricht, je nach \emph{Application Binary Interface} (ABI) eine 64-Bit long auf x86-64 LP64 beispielsweise dem Wert $-9223372036854775808$, wobei dieser bei einer 32-Bit long auf ARM32 (ILP32) mit $-2147483648$ deutlich kleiner ist. Auch unterschiedliche Byte-Reihenfolgen (Endianness), Fließkommaarithmetik und sonstige plattformabhängige Eigenschaften können zu Abweichungen führen. \parencite{amd64_psabi_2018} \parencite{arm_aapcs32} \parencite{wg14_n1570_2011}
+
+All diese Abweichungen müssen klar beobachtet, dokumentiert und in den Tests berücksichtigt werden. So könnten die Tests für jede Zielarchitekturen jeweils erwartete Ergebnisse definieren, um die Vergleichbarkeit zu gewährleisten.
+
+
+\subsection{Beispiel: Csmith}
+
+Abweichende Ergebnisse können auf Compilerfehler hinweisen.
+Der Vergleich allein zeigt jedoch weder eindeutig, \emph{welche}
+Konfiguration fehlerhaft ist, noch, \emph{warum} der Fehler auftritt.
+
+Csmith \parencite{csmith} generiert zufällige Programme in C. Diese können mit
+verschiedenen Compilern und Compileroptionen getestet werden. Die
+Ergebnisse werden anschließend verglichen, um mögliche Fehler aufzudecken.
+
+\begin{verbatim}
+csmith > random2.c
+gcc random2.c -I$HOME/csmith/include -o random2_gcc
+clang random2.c -I$HOME/csmith/include -o random2_clang
+./random2_gcc > gcc_output.txt
+./random2_clang > clang_output.txt
+diff -u gcc_output.txt clang_output.txt
+\end{verbatim}
+
+Der obige Ausschnitt zeigt Befehle für eine Unix-Shell. Ein zufälliges
+C-Programm wird generiert, mit GCC und Clang kompiliert und anschließend
+ausgeführt. Die Ausgaben werden in Textdateien gespeichert und mit
+\texttt{diff} verglichen. Der Include-Pfad muss zur lokalen
+Csmith-Installation passen.
+
+Die erzeugten Binärdateien dürfen sich unterscheiden, da die Compiler intern
+unterschiedlich arbeiten. Unter vergleichbaren Bedingungen muss das definierte
+beobachtbare Verhalten und damit auch die verglichene Ausgabe übereinstimmen.
+
+
+% ---------------------------------------------
+
+\clearpage
+\printbibliography
+
+\end{document}

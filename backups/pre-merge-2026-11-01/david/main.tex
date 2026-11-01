@@ -1,0 +1,383 @@
+\documentclass[11pt,a4paper]{article}
+% -*-mode: tex;coding: utf-8;-*-
+% Grundlage: die vom Nutzer bereitgestellte Seminarvorlage von Christoph Dalitz.
+% Unveränderte Referenz: vorlage-original.tex. Anpassungen: eine Spalte,
+% aktueller Titel/Autoren/Semester, Inhaltsverzeichnis und ergänzte Pakete
+% für die vorhandenen Tabellen und Codebeispiele. Fachlicher Inhalt unverändert.
+
+% Direkte Eingabe von Umlauten und Standard-PS-Schrift wie in der Vorlage.
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{times}
+\usepackage{textcomp}
+\usepackage{microtype}
+
+% Einspaltiges Seitenlayout mit den Rändern der Vorlage.
+\usepackage{calc}
+\usepackage[left=2.0cm,right=2.0cm,top=3.0cm,bottom=3.0cm,headheight=14pt]{geometry}
+\usepackage[ngerman]{babel}
+\usepackage{parskip}
+\frenchspacing
+\tolerance=9000
+\setlength{\emergencystretch}{2em}
+\clubpenalty=10000
+\widowpenalty=10000
+
+% Beschriftungen und Listen aus der Vorlage; Tabellenpakete für den Inhalt.
+\usepackage{enumitem}
+\usepackage[font=small,margin=1ex,labelfont=bf]{caption}
+\usepackage{booktabs,tabularx,array,amsmath}
+\usepackage{graphicx}
+\setlist{nosep,leftmargin=*}
+\setlist[enumerate]{before=\raggedright}
+\renewcommand{\arraystretch}{1.18}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+
+% Listings: wie in der Vorlage schwarz, mit unterer Linie und Beschriftung.
+% Die Ausschnitte bleiben am erklärenden Text und werden nicht aufgeteilt.
+\usepackage{xcolor}
+\definecolor{codebg}{HTML}{F3F6F8}
+\usepackage{listings}
+\lstset{
+  basicstyle=\small\ttfamily,
+  backgroundcolor=\color{codebg},
+  keywordstyle=\ttfamily,
+  commentstyle=\ttfamily,
+  stringstyle=\ttfamily,
+  showstringspaces=false,
+  frame=bottomline,
+  framerule=0.4pt,
+  breaklines=true,
+  columns=fullflexible,
+  keepspaces=true,
+  upquote=true,
+  tabsize=2,
+  aboveskip=5pt,
+  belowskip=7pt,
+  captionpos=b
+}
+\newcommand{\code}[1]{\texttt{#1}}
+
+% Unauffällige Verweise wie in der Vorlage; Literaturstil: ieeetr.
+\usepackage[hyphens]{url}
+\usepackage[colorlinks=false,pdfborder={0 0 0}]{hyperref}
+\hypersetup{
+  pdftitle={Compilerdiagnostik, Testing und Verifikation},
+  pdfauthor={Felix Orosz und David Stargala},
+  pdfsubject={Seminar Compilerbau, Wintersemester 2026/2027}
+}
+
+% Header und Footer nach der Vorlage.
+%=======================================================================
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\small Felix Orosz, David Stargala: Compilerdiagnostik}
+\rhead{\small Seminar WS 2026/27}
+\cfoot{\thepage}
+\renewcommand{\footrulewidth}{0pt}
+\fancypagestyle{firstpage}{
+  \fancyhead{}
+  \cfoot{\footnotesize\emph{Seminar WS 2026/27, Hochschule Niederrhein,
+    Fachbereich Elektrotechnik \& Informatik}}
+  \renewcommand{\headrulewidth}{0pt}
+}
+
+% Titel: Aufbau und Abstand nach der Vorlage.
+%=======================================================================
+\title{\vspace*{-10mm}Compilerdiagnostik,\\Testing und Verifikation\\}
+\author{Felix Orosz \and David Stargala}
+\date{Seminar Compilerbau, Bachelor Informatik, 5. Semester\\
+  Wintersemester 2026/2027 \quad Stand: 30. Oktober 2026}
+
+\begin{document}
+\renewcommand{\labelenumi}{\arabic{enumi})}
+\maketitle
+\thispagestyle{firstpage}
+% TODO
+\begin{abstract}
+Die Ausarbeitung erklärt Compilerdiagnostik, Source Locations, Unit-Tests, Golden Tests, Differential Testing und die Prüfung erzeugten Maschinencodes. Für jedes Verfahren werden die benötigten Informationen, der Ablauf und die Aussagegrenzen dargestellt. Allgemeine Konzepte werden von nachlesbaren Beispielen aus LLVM, Clang, Csmith und ESP-IDF getrennt. Die Beispiele verwenden C, C++ und RV32I. Eine abschlie\ss{}ende Übersicht verbindet die Verfahren mit den für ihre Implementierung erforderlichen Eingaben und Beobachtungen. Die Grundlagen der vorhergehenden Seminarthemen werden vorausgesetzt.
+\end{abstract}
+
+% Das Inhaltsverzeichnis verwendet die unveränderte article-Typografie.
+\setcounter{tocdepth}{1}
+\tableofcontents
+\newpage
+\section{Einordnung und Ziel}
+
+\section{Gute Compiler-Fehlermeldungen}
+\subsection{Inhalt und Verarbeitung einer Diagnose}
+
+\subsection{Beispiel: unbekannter Name und erwartete Meldung}
+
+\subsection{Fehlererholung und Folgediagnosen}
+
+\section{Source Locations}
+\subsection{Aufgabe und benötigte Informationen}
+Eine \emph{Source Location} bezeichnet eine Stelle im Quelltext. Sie erlaubt es, Tokens und Knoten des \emph{Abstract Syntax Tree} (AST) ihrer ursprünglichen Position im Quelltext zuzuordnen. Für eine spätere Diagnose müssen sich die betroffene Quelldatei und die Stelle innerhalb dieser bestimmen lassen, weshalb Positionsinformationen bereits beim Einlesen der Tokens erfasst werden \cite{clang}, Abschnitte \emph{The Token class} und \emph{How to add an expression or statement}.
+
+Eine \emph{Source Range} beschreibt einen zusammenhängenden Ausschnitt des Quelltexts, etwa einen Variablennamen oder einen Ausdruck. Zur Beschreibung dieser eignen sich Anfangsposition und Länge oder zwei Bereichsgrenzen. Die Bedeutung der Endposition muss eindeutig sein, da sie das letzte enthaltene Zeichen oder die Position unmittelbar hinter dem Bereich bezeichnen kann. Wird dagegen der Anfang des letzten Tokens gespeichert, ist zusätzlich dessen Länge erforderlich. \cite{clang,sourcelocation}.
+
+Damit die Informationen nutzbar bleiben, muss die Zuordnung zur ursprünglichen Eingabe erhalten bleiben. Da ein Variablenname mehrfach in derselben Datei verwendet werden kann, reicht der Name allein nicht aus, um die betroffene Stelle im Quelltext eindeutig zu bestimmen. Die in Tokens und AST gespeicherten Positionen ermöglichen es deshalb, erkannte Typ- oder Namensfehler der betroffenen Stelle im Quelltext zuzuordnen \cite{clang}.
+
+\subsection{Beispiel: Source Locations und Source Ranges in Clang}
+Clang verwendet kleine Positionsobjekte der Klasse \code{SourceLocation}. Ein Token enthält seine Anfangsposition und die Länge seiner originalen Schreibweise im \code{SourceBuffer}. Der Zugriff auf den ursprünglichen Text bleibt damit möglich, ohne die Schreibweise rekonstruieren zu müssen \cite{clang}, Abschnitte \emph{The SourceLocation and SourceManager classes} und \emph{The Token class}.
+
+Bei einer \emph{Token Range} bezeichnen die Grenzen jeweils den Anfang des ersten und des letzten Tokens \cite{clang}:
+\par\noindent\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Originalbeispiel für eine Token Range}]
+x = foo + bar;
+^first    ^last
+\end{lstlisting}
+\end{minipage}\par
+Die gespeicherte Endgrenze \code{last} liegt beim Zeichen \code{b} am Anfang des letzten Tokens \code{bar}. Zur Markierung des gesamten letzten Tokens muss sein Ende ermittelt werden. Dafür kann seine Länge mit \code{Lexer::MeasureTokenLength()} oder die Endposition mit \code{Lexer::getLocForEndOfToken()} ermittelt werden \cite{clang}.
+
+Am Wort \code{bar} lassen sich die Konventionen für die Endposition veranschaulichen. Bei einer Zählung der ASCII-Bytes ab 0 belegt \code{bar} die Positionen 10 bis 12. Mit eingeschlossener Endposition wird der Ausschnitt als \code{[10,12]} beschrieben. Bei ausgeschlossener Endposition lautet die Angabe \code{[10,13)}, wobei Position 13 unmittelbar hinter dem letzten Zeichen liegt und nicht dazugehört. Beide Angaben erfassen denselben Ausschnitt. Bei der Erzeugung und Verarbeitung einer Source Range muss dieselbe Konvention für die Endposition gelten.
+
+\subsection{Weitergabe und Darstellung}
+Der Lexer ordnet Tokens ihrer Schreibweise zu. Der Parser erhält diese Tokens und übernimmt die für Namen und Ausdrücke benötigten Positionen in den AST. Dadurch lassen sich Diagnosen aus späteren Analysen der ursprünglichen Stelle im Quelltext zuordnen \cite{clang}.
+
+Dabei wird die Position für die Ausgabe einer Diagnose anders dargestellt als bei ihrer Speicherung in Tokens und AST. Für die Ausgabe müssen die zugehörigen Zeile und Spalte bestimmt werden. Die Zeile ergibt sich aus den vorhergehenden Zeilenumbrüchen. Der in Bytes gemessene Abstand vom Zeilenanfang entspricht jedoch nicht immer der sichtbaren Spalte: UTF-8 verwendet ein bis vier Bytes pro Unicode-Codepoint \cite[Abschnitt~3]{uft8}. Auch Tabulatoren können in der Darstellung mehrere Spalten einnehmen. Wird dies nicht berücksichtigt, können korrekt gespeicherte Positionen zu einer falschen Unterstreichung führen.
+
+Für die Implementierung müssen daher Dateizuordnung, Positionsdarstellung und die Grenzen der Source Ranges konsistent aufeinander abgestimmt sein. Testfälle an Zeilenumbrüchen und am Dateiende untersuchen diese Zuordnung. Bei Zeichen, die in UTF-8 mehrere Bytes benötigen, wird zusätzlich geprüft, ob Bytepositionen bei der Darstellung korrekt in sichtbare Spalten umgesetzt werden. Die konkrete Datenstruktur kann je nach Compilerarchitektur unterschiedlich aufgebaut sein, wobei die beschriebenen Anforderungen unabhängig von der verwendeten Klassenbibliothek gelten \cite{clang,utf8}.
+
+\section{Unit-Tests für Lexer, Parser und Codegenerator}
+\subsection{Testgrenze, Eingabe und Erwartung}
+
+\subsection{Lexer: Tokenfolge und Quelltextbezug}
+
+\subsection{Parser: Struktur, Werte und Fehlerfälle}
+
+\subsection{Codegenerator: Datenstrukturen und erzeugte Instruktionen}
+
+
+\section{Golden Tests und FileCheck}
+\subsection{Vergleich mit einer geprüften Referenz}
+Ein Golden Test vergleicht eine aktuelle Ausgabe mit einer zuvor fachlich überprüften, gespeicherten Referenz, dem \emph{Golden}. Ein solcher Vergleich kann sich auf Compiler-Ausgaben wie Diagnosen oder AST-Ausgaben sowie auf die Ausgabe eines übersetzten Programms beziehen. Entscheidend sind die festgelegte Eingabe, die geprüfte Referenz und der Umfang des Vergleichs \cite{clang,suiteguide}.
+
+Ein vollständiger Referenzvergleich lässt sich in vier Schritten beschreiben: 
+\begin{enumerate}
+    \item Die Eingabe und das fachlich erwartete Ergebnis werden festgelegt.
+    \item Die Komponente beziehungsweise das übersetzte Programm
+          wird ausgeführt.
+    \item Die tatsächliche Ausgabe wird erfasst und nach den festgelegten
+          Vergleichsregeln mit der Referenz verglichen.
+    \item Stimmen die relevanten Daten überein, besteht der Test.
+          Andernfalls wird die Abweichung untersucht.
+\end{enumerate}
+Auch die LLVM-Testsammlung vergleicht Ausgaben ihrer Testprogramme mit gespeicherten Referenzen \cite{suiteguide}.
+
+Die Referenz enthält lediglich die Erwartung. Wird eine falsche Ausgabe als Golden gespeichert, kann eine übereinstimmende falsche Ausgabe den Test bestehen. Die fachliche Prüfung der Referenz ist deshalb eine Voraussetzung für die Aussagekraft des Vergleichs.
+
+\subsection{Beispiel: C-Programm und LLVM-Referenzdatei}
+Das Programm \code{2002-05-02-CastTest1.c} und seine Datei mit der Endung \code{.reference\_output} stehen im selben Ordner der LLVM-Testsammlung. Die folgenden beiden Listings geben ihren vollständigen Inhalt wieder \cite{goldenc}:
+
+% GOLDEN-PAIR-BEGIN
+\begingroup
+\lstset{captionpos=b}
+\noindent\begin{minipage}[b]{0.62\textwidth}
+\begin{lstlisting}[caption={C-Originalprogramm aus LLVM}]
+int printf(const char *, ...);
+
+int
+main(int argc, char** argv)
+{
+  signed char c0  = -1;
+  unsigned char c1 = 255;
+  printf("bs0  = %d %d\n", c0, c1);
+  return 0;
+}
+\end{lstlisting}
+\end{minipage}\hfill
+\begin{minipage}[b]{0.32\textwidth}
+\begin{lstlisting}[caption={Referenzdatei}]
+bs0  = -1 255
+exit 0
+\end{lstlisting}
+\end{minipage}
+\endgroup
+% GOLDEN-PAIR-END
+
+Die Variable \code{c0} ist vorzeichenbehaftet und enthält $-1$, \code{c1} ist vorzeichenlos und enthält~255. Auf dem hier betrachteten Ziel mit 8-Bit-\code{char} und 32-Bit-\code{int} passen beide Werte in \code{int}. Beim variadischen Aufruf von \code{printf} werden sie entsprechend den \emph{Integer Promotions} zu \code{int} umgewandelt, wobei ihre Werte erhalten bleiben. Daher werden die Zahlen -1 und 255 ausgegeben \cite{cstandard}.
+
+Die erste Referenzzeile enthält die erwartete Textausgabe einschließlich der Leerzeichen. Die zweite Zeile beschreibt den Exit-Status des Testlaufs. \code{exit 0} wird nicht durch \code{printf} ausgegeben. Das Programm beendet \code{main} mit \code{return 0}, und die Referenz erfasst diesen Status zusätzlich \cite{goldenc}.
+
+Für die Durchführung werden somit Programmtext, beobachtete Ausgabe und Exit-Status benötigt. Ein Vergleich muss beispielsweise scheitern, wenn die zweite Zahl als -1 statt 255 erscheint oder das Programm mit einem anderen Status endet. Er bestätigt bei Erfolg das erwartete Verhalten dieses Testprogramms unter der verwendeten Umgebung, nicht die allgemeine Korrektheit des Compilers \cite{goldenc,suiteguide}.
+
+\subsection{Abweichungen und Pflege der Referenz}
+Eine Abweichung zeigt zunächst, dass die aktuelle Ausgabe die gespeicherte Erwartung nicht erfüllt. Bei unverändertem Programm und unveränderter Sprachsemantik bleibt das fachlich erwartete Ergebnis bestehen. Bei einer beabsichtigten Änderung der Ausgabe kann eine Anpassung ihrer Referenz notwendig sein. Zuvor muss geprüft werden, ob die neue Ausgabe dem erwarteten Verhalten entspricht. Wird die Referenz ungeprüft durch die aktuelle Ausgabe ersetzt, kann dadurch auch eine fehlerhafte Ausgabe zum neuen Sollwert werden \cite{suiteguide}.
+
+Unterschiede der Umgebung können einen Textvergleich beeinflussen. Zeilenumbrüche können unterschiedlich gespeichert sein, beispielsweise als \code{CRLF} oder \code{LF}. Vor dem Vergleich können diese in ein gemeinsames Format umgewandelt werden. Diese Vereinheitlichung muss im Testaufbau berücksichtigt werden und darf keine Informationen entfernen, die der Test prüfen soll.
+
+\subsection{Beispiel: RV32I-Patterns mit FileCheck}
+FileCheck ermöglicht es, ausgewählte Patterns in der Compiler-Ausgabe
+zu prüfen. Dadurch kann der Vergleich auf bestimmte Instruktionen
+und ihre Reihenfolge beschränkt werden. Änderungen in anderen
+Ausgabeteilen müssen dadurch nicht zwingend zum Scheitern des Tests führen
+\cite{filecheck}.
+
+Für eine Addition enthält der LLVM-Test \code{alu32.ll} folgende
+Prüfzeilen \cite{rvtest}:
+
+\par\noindent\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Originale RV32I-Prüfzeilen aus alu32.ll}]
+; RV32I-LABEL: add:
+; RV32I:       # %bb.0:
+; RV32I-NEXT:    add a0, a0, a1
+; RV32I-NEXT:    ret
+\end{lstlisting}
+\end{minipage}\par
+
+FileCheck sucht zunächst das Funktionslabel \code{add:} und danach
+die Kommentarzeile \code{\# \%bb.0:}. Die beiden
+\code{RV32I-NEXT}-Direktiven verlangen unmittelbar anschließend
+die Addition \code{add a0, a0, a1} und die Rückkehr mit \code{ret}.
+Fehlt eine erwartete Textstelle oder ist diese Reihenfolge verletzt,
+schlägt die Prüfung fehl \cite{filecheck,rvtest}.
+
+Geprüft wird der erzeugte Assemblytext. Ob der Code bei seiner
+Ausführung das erwartete Ergebnis liefert, wird separat in
+Kapitel 8 behandelt.
+
+\section{Differential Testing}
+\subsection{Prinzip und Voraussetzungen}
+
+\subsection{Beispiel: dokumentierter GCC-/Clang-Vergleich}
+
+\subsection{Vergleich auswerten und reproduzieren}
+
+
+\section{Verifikation und Aussagekraft}
+
+\section{Erzeugten Maschinencode auf dem ESP32-C3 testen}
+
+\subsection{Testgegenstand und erwartetes Verhalten}
+Ein Ausführungstest untersucht, ob der erzeugte Code bei festgelegten
+Eingaben das erwartete Ergebnis liefert, wofür das übersetzte
+und gelinkte Programm ausgeführt wird. Gegenüber einem Vergleich des
+Assemblytexts werden damit auch die Verknüpfung mit der Laufzeitumgebung
+und die Ausführung auf dem Zielgerät berücksichtigt.
+
+Als Beispiel dient die Funktion \code{add} aus dem LLVM-Test
+\code{alu32.ll}. Der folgende Ausschnitt zeigt die Funktion ohne
+ihre FileCheck-Direktiven \cite{rvtest}.
+
+\par\noindent\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={IR-Funktion aus alu32.ll, FileCheck-Direktiven weggelassen}]
+define i32 @add(i32 %a, i32 %b) nounwind {
+  %1 = add i32 %a, %b
+  ret i32 %1
+}
+\end{lstlisting}
+\end{minipage}\par
+
+Die Funktion erhält zwei 32-Bit-Integer Parameter \code{\%a} und \code{\%b}, addiert sie und gibt das in \code{\%1} berechnete Ergebnis zurück. Das Attribut \code{nounwind} schließt das Weiterreichen von Ausnahmen an den Aufrufer aus \cite{langref}.
+
+Für die Eingaben 2 und 5 ist das Ergebnis 7 zu erwarten.
+Die dargestellte LLVM-Addition berechnet das Ergebnis modulo
+$2^{32}$. Für die Bitmuster \code{0xffffffff} und 1 ergibt sich
+daher 0 \cite[Abschnitt \emph{add Instruction}]{langref}.
+Diese Sollwerte werden aus der festgelegten Semantik abgeleitet
+und anschließend mit den tatsächlich ermittelten Ergebnissen
+verglichen.
+
+\subsection{Ablauf und Anbindung des erzeugten Codes}
+Der erzeugte Assemblycode wird zu einer Objektdatei assembliert.
+Diese wird mit dem Testprogramm und der benötigten Laufzeitumgebung
+gelinkt. Das ausführbare Programm wird anschließend auf den
+ESP32-C3 übertragen und gestartet.
+
+Der Test muss die vom untersuchten Compiler erzeugte Funktion
+mit den festgelegten Eingaben aufrufen und ihren Rückgabewert
+auslesen können. Dafür müssen das Funktionssymbol, die Parameter-
+und Rückgabetypen sowie die verwendete ABI zwischen dem erzeugten
+Code und dem aufrufenden Testprogramm übereinstimmen. Die Grundlagen
+dieser Schnittstellen werden in den vorhergehenden Seminarthemen
+behandelt.
+
+Für einen nachvollziehbaren Testlauf müssen die ausgeführte
+Programmversion, die verwendeten Compileroptionen, die Eingaben
+sowie die erwarteten und beobachteten Ergebnisse festgehalten
+werden. Dadurch bleibt erkennbar, welche Übersetzung tatsächlich
+geprüft wurde.
+
+\subsection{Beispiel für den Testaufbau mit Unity}
+ESP-IDF stellt für Tests auf dem ESP32-C3 eine Testanwendung mit
+dem C-Testframework Unity bereit \cite{esptests}. Das folgende
+Originalbeispiel aus \code{test\_mean.c} zeigt, wie Eingabe,
+Funktionsaufruf und Ergebnisvergleich in einem Test zusammengeführt
+werden. Es prüft eine Mittelwertfunktion in C \cite{espmean}.
+
+\par\noindent\begin{minipage}{\linewidth}
+\begin{lstlisting}[language=C,caption={Originaltest aus dem ESP-IDF-Beispiel test\_mean.c}]
+TEST_CASE("Mean of a test vector", "[mean]")
+{
+    const int v[] = {1, 3, 5, 7, 9};
+    TEST_ASSERT_EQUAL(5, testable_mean(v, countof(v)));
+}
+\end{lstlisting}
+\end{minipage}\par
+
+\code{TEST\_CASE} registriert den benannten Test.
+\code{countof} ist ein im Originalbeispiel definiertes Makro zur
+Bestimmung der Elementanzahl. Der erwartete Mittelwert der fünf
+Werte beträgt 5. \code{TEST\_ASSERT\_EQUAL} vergleicht diesen Sollwert
+mit dem Rückgabewert von \code{testable\_mean} \cite{espmean}.
+
+Das Beispiel veranschaulicht den Testaufbau. Um damit einen
+Codegenerator zu prüfen, muss die aufgerufene Implementierung aus
+der zu untersuchenden Übersetzung stammen. Beim Additionsbeispiel
+würde der Test die erzeugte Funktion mit den vorgesehenen
+Argumenten aufrufen und ihren Rückgabewert mit dem jeweiligen
+Sollwert vergleichen.
+
+\subsection{Auswertung und Aussagegrenzen}
+Für den beschriebenen Funktionstest müssen der erwartete Rückgabewert
+und ein regulärer Abschluss des Aufrufs vorliegen. Ein falscher Wert,
+ein Absturz und ein ausbleibendes Ergebnis sind unterschiedliche
+Fehlerfälle. Eine festgelegte Zeitgrenze ermöglicht es, auch einen
+nicht abgeschlossenen Aufruf als Fehler zu erfassen \cite{csmith}.
+
+Eine Abweichung muss anschließend eingegrenzt werden. Ihre Ursache
+kann im erzeugten Code, in einer fehlerhaften Funktionsanbindung
+oder im Testaufbau liegen. Der beobachtete Fehler beweist deshalb
+noch nicht, dass allein der Codegenerator verantwortlich ist.
+
+Ein bestandener Test bestätigt das erwartete Verhalten für die
+geprüften Eingaben auf dem verwendeten Gerät und mit der
+eingesetzten Programmversion. Eine allgemeine Korrektheit des
+Compilers lässt sich daraus nicht ableiten.
+
+\section{Von der Beschreibung zur Implementierung}
+
+
+\section{Fazit}
+%TODO
+
+\clearpage\appendix
+\section{Fundstellen und lokale Lesekopien}\label{sec:quellen}
+Die folgenden Dateien liegen im Quellenpaket unter \code{quellen/}. Die LLVM- und Clang-Beispiele sind auf \code{llvmorg-20.1.0} festgelegt. Die ESP-IDF-Datei stammt aus dem Tag \code{v5.5}. Codeausschnitte sind in der Ausarbeitung als Originale oder gekürzte Auszüge bezeichnet; veränderte Zeilenumbrüche ändern ihren Inhalt nicht. Zusätzliche Indexberechnungen und Sollwerte sind als Erläuterungen des Originalbeispiels kenntlich.
+
+\begin{enumerate}
+%TODO prüfen ob alle quellen nötig sind
+\item \code{clang-internals.html}: \emph{The Diagnostics Subsystem}, \emph{Diagnostic Wording}, \emph{The Token class}, \emph{SourceRange and CharSourceRange}, \emph{Recovery AST}, \emph{How to add an expression or statement} und \emph{Specifying Diagnostics}.
+\item \code{SourceLocation.h}: Kommentar zu \code{CharSourceRange} ab Zeile~248. Ergänzende API-Dokumentation der Bereichsarten.
+\item \code{LexerTest.cpp}: \code{FindNextToken}, Zeilen 604--621. Eingabe und erwartete Tokenfolge stehen im selben Test.
+\item \code{AsmParserTest.cpp}: \code{TypeAndConstantValueParsing}, ab Zeile~70. Der Testaufbau erklärt die Variablen \code{M}, \code{Error} und \code{V} der abgedruckten Ausschnitte.
+\item \code{MachineInstrTest.cpp}: \code{DebugLocPrinting}, ab Zeile~202. Vor den ausgegebenen Prüfzeilen stehen der Aufbau der Instruktion und ihre Quelltextzuordnung.
+\item \code{alu32.ll}: \code{add} ab Zeile~164 und \code{sub} ab Zeile~178. Die Datei enthält auch RV64I-Erwartungen; verwendet werden hier ausschlie\ss{}lich die RV32I-Prüfungen.
+\item \code{2002-05-02-CastTest1.c} und die zugehörige \code{.reference\_output}: vollständiger Golden-Testfall. \code{llvm-test-suite.html}, Abschnitt \emph{Structure}, erklärt die Referenzausgaben.
+\item \code{llvm-testing.html}: \emph{Unit tests}, \emph{Regression tests} und \emph{Regression test structure}.
+\item \code{llvm-filecheck.html}: \emph{Tutorial}, \emph{CHECK-NEXT}, \emph{CHECK-LABEL} und \emph{strict-whitespace}.
+\item \code{Csmith-README.md}: \emph{Use Csmith}, mit den übernommenen GCC-/Clang-Befehlen und dem Hinweis auf Zeitgrenzen.
+\item \code{llvm-langref.html}: \emph{Well-Formedness} und \emph{add Instruction}; \code{compcert-overview.html}: Abschnitte~1.2 und~1.3 zu semantischer Erhaltung und Beweisumfang.
+\item \code{esp32c3-unit-tests.html}: \emph{Normal Test Cases}, \emph{Building Unit Test App}, \emph{Running Unit Tests} und \emph{Multi-stage Test Cases}. \code{esp-test-mean.c}: Test \code{Mean of a test vector}.
+\item \code{rfc3629.html}: Abschnitt~3 zur UTF-8-Codierung. \code{c11-n1570.pdf}: Abschnitte~6.3.1.1 und~6.5.2.2 zur Integer-Promotion und Argumentumwandlung sowie~6.5.5 und~6.5.6 zur Operatorbindung.
+\end{enumerate}
+
+Die HTML-Lesekopien enthalten den Haupttext in vereinfachter Darstellung. Originaladressen, Abrufdaten und Prüfsummen der abgerufenen Daten stehen in \code{abrufprotokoll.json}; Lizenzangaben liegen bei. Die Originaltests benötigen teilweise die vollständige LLVM-/Clang- oder ESP-IDF-Testumgebung. Sie werden hier zur Erklärung ihrer Verfahren verwendet und nicht als in dieser Arbeitsumgebung vollständig ausgeführte Testsammlung ausgegeben.
+
+\clearpage\addcontentsline{toc}{section}{Literatur}
+{\raggedright\bibliographystyle{ieeetr}\bibliography{literatur}}
+
+\end{document}

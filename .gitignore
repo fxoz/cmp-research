@@ -43,3 +43,6 @@ _minted*/
 .DS_Store
 Thumbs.db
 Desktop.ini
+
+# Incremental LaTeX preview cache
+/.latex-build/
